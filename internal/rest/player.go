@@ -3,7 +3,7 @@ package rest
 import (
 	"context"
 	"go-boilerplate/domain"
-	"go-boilerplate/internal/errs"
+	"go-boilerplate/errs"
 	"net/http"
 
 	"github.com/labstack/echo/v4"

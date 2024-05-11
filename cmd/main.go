@@ -31,6 +31,8 @@ func main() {
 	e := echo.New()
 	e.Use(middleware.CORS)
 
+	e.GET("/healthz", healthCheckHandler)
+
 	// Prepare Repository
 	playerRepo := postgresql.NewPlayerRepository()
 
@@ -61,4 +63,10 @@ func main() {
 		logrus.Fatal(err)
 	}
 
+}
+
+func healthCheckHandler(c echo.Context) error {
+	return c.JSON(http.StatusOK, map[string]interface{}{
+		"message": "success",
+	})
 }

@@ -9,10 +9,6 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-type ResponseError struct {
-	Message string `json:"message"`
-}
-
 type PlayerService interface {
 	GetByID(ctx context.Context, id string) (*domain.Player, error)
 }

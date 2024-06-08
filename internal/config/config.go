@@ -2,42 +2,39 @@ package config
 
 import (
 	"log"
+	"strings"
 
-	"github.com/caarlos0/env"
-	"github.com/joho/godotenv"
+	"github.com/spf13/viper"
 )
 
 type Configuration struct {
-	Env  string `env:"ENV" envDefault:"local"`
-	Port string `env:"PORT" envDefault:"3000"`
+	Env          string
+	Port         string
+	Timeout      int
+	WriteTimeout int `mapstructure:"WRITE_TIMEOUT"`
+	ReadTimeout  int `mapstructure:"READ_TIMEOUT"`
+	IdleTimeout  int `mapstructure:"IDLE_TIMEOUT"`
 }
 
 func NewConfiguration() *Configuration {
-	err := godotenv.Load(".env")
-	if err != nil {
-		log.Printf("Error loading .env file: %v", err)
+	var cfg Configuration
+
+	viper.AddConfigPath(".")
+	viper.SetConfigFile(".env")
+
+	viper.SetDefault("ENV", "local")
+	viper.SetDefault("PORT", "3001")
+
+	viper.AutomaticEnv()
+	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+
+	if err := viper.ReadInConfig(); err != nil {
+		log.Fatal("Error reading env file", err)
 	}
 
-	c := &Configuration{}
-
-	if err := env.Parse(c); err != nil {
-		log.Fatal(err)
+	if err := viper.Unmarshal(&cfg); err != nil {
+		log.Fatalf("unable to decode into struct, %v", err)
 	}
 
-	return c
+	return &cfg
 }
-
-// func getEnv(key, fallback string) string {
-// 	if value, ok := os.LookupEnv(key); ok {
-// 		return value
-// 	}
-// 	return fallback
-// }
-
-// func getEnvAsInt(key string, fallback int) int {
-// 	valueStr := getEnv(key, "")
-// 	if value, err := strconv.Atoi(valueStr); err == nil {
-// 		return value
-// 	}
-// 	return fallback
-// }

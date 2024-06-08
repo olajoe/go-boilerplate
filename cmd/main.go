@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"go-boilerplate/internal/adapter/db"
-	_http "go-boilerplate/internal/adapter/http"
+	"go-boilerplate/internal/adapter/handler"
 	"go-boilerplate/internal/config"
 	"go-boilerplate/internal/usecase"
 	"go-boilerplate/internal/utils"
@@ -24,13 +24,13 @@ func main() {
 
 	playerUseCase := usecase.NewPlayerUseCase(playeRepo)
 
-	handler := _http.NewPlayerHandler(playerUseCase)
+	playerHandler := handler.NewPlayerHandler(playerUseCase)
 
 	router := mux.NewRouter()
 
 	router.HandleFunc("/healthz", utils.HealthCheckHandler).Methods(http.MethodGet)
 
-	router.HandleFunc("/players/:id", handler.GetPlayerByID).Methods(http.MethodGet)
+	router.HandleFunc("/players/:id", playerHandler.GetPlayerByID).Methods(http.MethodGet)
 
 	srv := http.Server{
 		Addr:         fmt.Sprintf("%s:%s", "localhost", cfg.Port),

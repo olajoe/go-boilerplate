@@ -1,4 +1,4 @@
-package http
+package handler
 
 // Contains the implementation details for external dependencies (HTTP handlers)
 

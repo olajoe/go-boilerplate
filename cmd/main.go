@@ -3,70 +3,59 @@ package main
 import (
 	"context"
 	"fmt"
+	"go-boilerplate/internal/adapter/db"
+	"go-boilerplate/internal/adapter/handler"
 	"go-boilerplate/internal/config"
-	"go-boilerplate/internal/repository/postgresql"
-	"go-boilerplate/internal/rest"
-	"go-boilerplate/internal/rest/middleware"
-	"go-boilerplate/player"
+	"go-boilerplate/internal/usecase"
+	"go-boilerplate/internal/utils"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
 	"time"
 
-	"github.com/labstack/echo/v4"
-	"github.com/sirupsen/logrus"
-)
-
-const (
-	defaultTimeout = 30
-	defaultAddress = ":9090"
+	"github.com/gorilla/mux"
 )
 
 func main() {
-	fmt.Println("Hello world")
-
 	cfg := config.NewConfiguration()
-	_ = cfg
 
-	e := echo.New()
-	e.Use(middleware.CORS)
+	playeRepo := db.NewPlayerRepositoryDB()
 
-	e.GET("/healthz", healthCheckHandler)
+	playerUseCase := usecase.NewPlayerUseCase(playeRepo)
 
-	// Prepare Repository
-	playerRepo := postgresql.NewPlayerRepository()
+	playerHandler := handler.NewPlayerHandler(playerUseCase)
 
-	// Build service Layer
-	playerServ := player.NewPlayerService(playerRepo)
-	rest.NewPlayerHandler(e, playerServ)
+	router := mux.NewRouter()
 
-	// Start Server
-	address := os.Getenv("SERVER_ADDRESS")
-	if address == "" {
-		address = defaultAddress
+	router.HandleFunc("/healthz", utils.HealthCheckHandler).Methods(http.MethodGet)
+
+	router.HandleFunc("/players/:id", playerHandler.GetPlayerByID).Methods(http.MethodGet)
+
+	srv := http.Server{
+		Addr:         fmt.Sprintf("%s:%s", "localhost", cfg.Port),
+		Handler:      router,
+		WriteTimeout: time.Second * time.Duration(cfg.WriteTimeout),
+		ReadTimeout:  time.Second * time.Duration(cfg.ReadTimeout),
+		IdleTimeout:  time.Second * time.Duration(cfg.IdleTimeout),
 	}
 
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
-	defer stop()
-	// Start server
 	go func() {
-		if err := e.Start(address); err != nil && err != http.ErrServerClosed {
-			logrus.Fatal("shutting down the server")
+		slog.Info(fmt.Sprintf("Server listening on %v", cfg.Port))
+		if err := srv.ListenAndServe(); err != nil {
+			slog.Error(err.Error())
 		}
 	}()
 
-	// Wait for interrupt signal to gracefully shutdown the server with a timeout of 10 seconds.
-	<-ctx.Done()
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt)
+	<-c
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*time.Duration(cfg.Timeout))
 	defer cancel()
-	if err := e.Shutdown(ctx); err != nil {
-		logrus.Fatal(err)
-	}
 
-}
+	srv.Shutdown(ctx)
 
-func healthCheckHandler(c echo.Context) error {
-	return c.JSON(http.StatusOK, map[string]interface{}{
-		"message": "success",
-	})
+	slog.Info("shutting down")
+	os.Exit(0)
 }
